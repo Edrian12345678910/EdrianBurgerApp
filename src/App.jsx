@@ -1,584 +1,484 @@
-import { useState } from "react";
+﻿import { useMemo, useState } from "react";
 import "./App.css";
+
+const burgers = [
+  {
+    id: 1,
+    name: "Crispy Chicken",
+    description: "Crispy chicken fillet with fresh lettuce and creamy sauce.",
+    price: 99.15,
+    image: "/chickenburger.jpg",
+    rating: 4.8,
+    category: "Chicken",
+    tag: "BEST SELLER",
+  },
+  {
+    id: 2,
+    name: "Ultimate Bacon",
+    description: "Juicy beef patty topped with crispy bacon and cheese.",
+    price: 129.15,
+    image: "/baconburger.jpg",
+    rating: 4.9,
+    category: "Beef",
+    tag: "POPULAR",
+  },
+  {
+    id: 3,
+    name: "Veggie Burger",
+    description: "A delicious veggie patty with fresh vegetables and sauce.",
+    price: 109.15,
+    image: "/veggieburger.jpg",
+    rating: 4.7,
+    category: "Veggie",
+    tag: "FRESH PICK",
+  },
+  {
+    id: 4,
+    name: "Classic Cheese",
+    description: "Classic beef burger with melted cheese and special sauce.",
+    price: 119.15,
+    image: "/cheeseburger.jpg",
+    rating: 4.8,
+    category: "Beef",
+    tag: "CLASSIC",
+  },
+];
+
+const money = (amount) =>
+  new Intl.NumberFormat("en-PH", {
+    style: "currency",
+    currency: "PHP",
+  }).format(amount);
 
 function App() {
   const [cartItems, setCartItems] = useState([]);
+  const [favorites, setFavorites] = useState([]);
+  const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
   const [showCart, setShowCart] = useState(false);
   const [showCheckout, setShowCheckout] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
+  const [search, setSearch] = useState("");
+  const [activeCategory, setActiveCategory] = useState("All");
+  const [customer, setCustomer] = useState({
+    name: "",
+    contact: "",
+    address: "",
+    payment: "Cash on Delivery",
+  });
+  const [lastOrder, setLastOrder] = useState(null);
 
-  const burgers = [
-    {
-      id: 1,
-      name: "Crispy Chicken",
-      description:
-        "Crispy chicken fillet with fresh lettuce and creamy sauce.",
-      price: 99.15,
-      image: "/chickenburger.jpg",
-      rating: 4.8,
-    },
-    {
-      id: 2,
-      name: "Ultimate Bacon",
-      description:
-        "Juicy beef patty topped with crispy bacon and cheese.",
-      price: 129.15,
-      image: "/baconburger.jpg",
-      rating: 4.9,
-    },
-    {
-      id: 3,
-      name: "Veggie Burger",
-      description:
-        "A delicious veggie patty with fresh vegetables and sauce.",
-      price: 109.15,
-      image: "/veggieburger.jpg",
-      rating: 4.7,
-    },
-    {
-      id: 4,
-      name: "Classic Cheese",
-      description:
-        "Classic beef burger with melted cheese and special sauce.",
-      price: 119.15,
-      image: "/cheeseburger.jpg",
-      rating: 4.8,
-    },
-  ];
+  const categories = ["All", "Beef", "Chicken", "Veggie"];
 
-  // ADD TO CART
+  const filteredBurgers = useMemo(() => {
+    return burgers.filter((burger) => {
+      const matchesCategory =
+        activeCategory === "All" || burger.category === activeCategory;
+      const matchesSearch =
+        burger.name.toLowerCase().includes(search.toLowerCase()) ||
+        burger.description.toLowerCase().includes(search.toLowerCase());
+      const matchesFavorite =
+        !showFavoritesOnly || favorites.includes(burger.id);
+
+      return matchesCategory && matchesSearch && matchesFavorite;
+    });
+  }, [activeCategory, search, showFavoritesOnly, favorites]);
+
+  const totalItems = cartItems.reduce(
+    (total, item) => total + item.quantity,
+    0
+  );
+
+  const totalPrice = cartItems.reduce(
+    (total, item) => total + item.price * item.quantity,
+    0
+  );
+
   const addToCart = (burger) => {
-    setCartItems((currentItems) => {
-      const existingItem = currentItems.find(
-        (item) => item.id === burger.id
-      );
+    setCartItems((items) => {
+      const existing = items.find((item) => item.id === burger.id);
 
-      if (existingItem) {
-        return currentItems.map((item) =>
+      if (existing) {
+        return items.map((item) =>
           item.id === burger.id
             ? { ...item, quantity: item.quantity + 1 }
             : item
         );
       }
 
-      return [...currentItems, { ...burger, quantity: 1 }];
+      return [...items, { ...burger, quantity: 1 }];
     });
   };
 
-  // INCREASE QUANTITY
   const increaseQuantity = (id) => {
-    setCartItems((currentItems) =>
-      currentItems.map((item) =>
-        item.id === id
-          ? { ...item, quantity: item.quantity + 1 }
-          : item
+    setCartItems((items) =>
+      items.map((item) =>
+        item.id === id ? { ...item, quantity: item.quantity + 1 } : item
       )
     );
   };
 
-  // DECREASE QUANTITY
   const decreaseQuantity = (id) => {
-    setCartItems((currentItems) =>
-      currentItems
+    setCartItems((items) =>
+      items
         .map((item) =>
-          item.id === id
-            ? { ...item, quantity: item.quantity - 1 }
-            : item
+          item.id === id ? { ...item, quantity: item.quantity - 1 } : item
         )
         .filter((item) => item.quantity > 0)
     );
   };
 
-  // TOTAL ITEMS
-  const totalItems = cartItems.reduce(
-    (total, item) => total + item.quantity,
-    0
-  );
+  const removeFromCart = (id) => {
+    setCartItems((items) => items.filter((item) => item.id !== id));
+  };
 
-  // TOTAL PRICE
-  const totalPrice = cartItems.reduce(
-    (total, item) => total + item.price * item.quantity,
-    0
-  );
+  const toggleFavorite = (id) => {
+    setFavorites((items) =>
+      items.includes(id)
+        ? items.filter((favoriteId) => favoriteId !== id)
+        : [...items, id]
+    );
+  };
 
-  // PROCEED TO CHECKOUT
-  const proceedToCheckout = () => {
+  const openCheckout = () => {
     setShowCart(false);
     setShowCheckout(true);
   };
 
-  // PLACE ORDER
+  const handleCustomerChange = (event) => {
+    const { name, value } = event.target;
+    setCustomer((current) => ({ ...current, [name]: value }));
+  };
+
   const placeOrder = (event) => {
     event.preventDefault();
+
+    setLastOrder({
+      customer: { ...customer },
+      items: [...cartItems],
+      total: totalPrice,
+      orderNumber: `GB-${Date.now().toString().slice(-6)}`,
+    });
 
     setCartItems([]);
     setShowCheckout(false);
     setShowSuccess(true);
   };
 
+  const closeSuccess = () => {
+    setShowSuccess(false);
+    setCustomer({
+      name: "",
+      contact: "",
+      address: "",
+      payment: "Cash on Delivery",
+    });
+  };
+
   return (
     <div className="app">
+      <div className="announcement">
+        FRESHLY MADE. ALWAYS DELICIOUS. <span>•</span> YOUR BURGER CRAVINGS START HERE!
+      </div>
 
-      {/* ================= NAVBAR ================= */}
-      <nav className="navbar">
+      <header className="navbar">
+        <a className="logo" href="#home" aria-label="Garben Burger home">
+          <img src="/burgerlogo.png" alt="Garben Burger" />
+          <span>GARBEN<span className="logo-accent">BURGER.</span></span>
+        </a>
 
-        <div className="logo">
-          <img
-            src="/burgerlogo.png"
-            alt="Garben Burger Logo"
-          />
-        </div>
-
-        <div className="nav-links">
-          <a href="#about">ABOUT</a>
+        <nav className="nav-links">
+          <a href="#home">HOME</a>
           <a href="#menu">OUR MENU</a>
-          <a href="#shop">SHOP</a>
+          <a href="#about">ABOUT</a>
           <a href="#contact">CONTACT</a>
-        </div>
+        </nav>
 
-        {/* CART BUTTON */}
         <button
+          type="button"
           className="cart-button"
           onClick={() => setShowCart(true)}
+          aria-label={`Open cart, ${totalItems} items`}
         >
-          🛒
-          <span>{totalItems}</span>
+          <span className="cart-symbol">🛒</span>
+          <span className="cart-label">MY CART</span>
+          <span className="cart-count">{totalItems}</span>
         </button>
+      </header>
 
-      </nav>
-
-      {/* ================= MENU ================= */}
-      <section id="menu" className="menu-section">
-
-        <p className="small-title">
-          WELCOME TO GARBEN BURGER
-        </p>
-
-        <h1>OUR CRAZY BURGERS</h1>
-
-        <p className="intro">
-          Fresh, juicy, and delicious burgers made to satisfy
-          your cravings. Choose your favorite and enjoy every bite.
-        </p>
-
-        <div className="burger-grid">
-
-          {burgers.map((burger) => (
-            <div
-              className="burger-card"
-              key={burger.id}
-            >
-
-              {/* BURGER IMAGE */}
-              <div className="burger-image">
-
-                <img
-                  src={burger.image}
-                  alt={burger.name}
-                />
-
-                <button className="favorite">
-                  ♡
-                </button>
-
+      <main>
+        <section className="hero" id="home">
+          <div className="hero-content">
+            <span className="hero-kicker">THE GOOD FOOD CLUB</span>
+            <h1>
+              BIG FLAVOR.
+              <br />
+              <span>BIG HAPPINESS.</span>
+            </h1>
+            <p>
+              Fresh ingredients, juicy burgers, and flavors worth coming back
+              for. Your next favorite bite is waiting.
+            </p>
+            <div className="hero-actions">
+              <a className="primary-button" href="#menu">EXPLORE MENU <span>→</span></a>
+              <div className="hero-rating">
+                <span>★★★★★</span>
+                <small>Made with love, served fresh</small>
               </div>
-
-              {/* BURGER INFORMATION */}
-              <div className="burger-info">
-
-                <div className="rating">
-                  ⭐ {burger.rating}
-                </div>
-
-                <h2>{burger.name}</h2>
-
-                <p>{burger.description}</p>
-
-                <div className="card-bottom">
-
-                  <span className="price">
-                    ₱{burger.price.toFixed(2)}
-                  </span>
-
-                  <button
-                    className="add-cart"
-                    onClick={() => addToCart(burger)}
-                  >
-                    ADD TO CART
-                  </button>
-
-                </div>
-
-              </div>
-
             </div>
-          ))}
+            <div className="hero-note">
+              <span className="note-icon">✦</span>
+              FRESHLY PREPARED • FULL OF FLAVOR
+            </div>
+          </div>
 
-        </div>
+          <div className="hero-visual">
+            <div className="hero-circle"></div>
+            <div className="hero-image-wrap">
+              <img src="/baconburger.jpg" alt="Our delicious signature bacon burger" />
+            </div>
+            <div className="hero-sticker">
+              <span>100%</span>
+              <small>DELICIOUS</small>
+            </div>
+            <div className="hero-price">
+              <small>STARTING AT</small>
+              <strong>₱99.15</strong>
+            </div>
+          </div>
+        </section>
 
-      </section>
+        <section className="features-strip">
+          <div><span>✦</span><p>FRESH INGREDIENTS</p></div>
+          <div><span>♨</span><p>MADE TO ORDER</p></div>
+          <div><span>♥</span><p>MADE WITH LOVE</p></div>
+          <div><span>★</span><p>BIG, BOLD FLAVOR</p></div>
+        </section>
 
-      {/* ================= ABOUT ================= */}
-      <section
-        id="about"
-        className="bottom-section"
-      >
-        <h2>ABOUT US</h2>
+        <section className="menu-section" id="menu">
+          <div className="section-heading">
+            <div>
+              <span className="section-kicker">TASTE THE DIFFERENCE</span>
+              <h2>OUR CRAZY <span>BURGERS</span></h2>
+              <p>Find your perfect burger. Every bite is a good decision.</p>
+            </div>
+            <div className="menu-count">{filteredBurgers.length} MENU ITEMS</div>
+          </div>
 
-        <p>
-          Garben Burger serves delicious and satisfying
-          burgers made for burger lovers.
-        </p>
-      </section>
+          <div className="menu-tools">
+            <div className="category-tabs">
+              {categories.map((category) => (
+                <button
+                  type="button"
+                  key={category}
+                  className={activeCategory === category ? "category-tab active" : "category-tab"}
+                  onClick={() => {
+                    setActiveCategory(category);
+                    setShowFavoritesOnly(false);
+                  }}
+                >
+                  {category}
+                </button>
+              ))}
+            </div>
 
-      {/* ================= SHOP ================= */}
-      <section
-        id="shop"
-        className="bottom-section"
-      >
-        <h2>SHOP</h2>
+            <div className="menu-actions">
+              <label className="search-box">
+                <span>⌕</span>
+                <input
+                  type="search"
+                  placeholder="Search burgers..."
+                  value={search}
+                  onChange={(event) => setSearch(event.target.value)}
+                />
+              </label>
+              <button
+                type="button"
+                className={showFavoritesOnly ? "favorites-filter active" : "favorites-filter"}
+                onClick={() => setShowFavoritesOnly((value) => !value)}
+              >
+                ♥ <span>Favorites ({favorites.length})</span>
+              </button>
+            </div>
+          </div>
 
-        <p>
-          Choose your favorite burger and add it to your cart.
-        </p>
-      </section>
+          {filteredBurgers.length > 0 ? (
+            <div className="burger-grid">
+              {filteredBurgers.map((burger) => (
+                <article className="burger-card" key={burger.id}>
+                  <div className="burger-image">
+                    <img src={burger.image} alt={burger.name} />
+                    <span className="product-tag">{burger.tag}</span>
+                    <button
+                      type="button"
+                      className={favorites.includes(burger.id) ? "favorite is-favorite" : "favorite"}
+                      onClick={() => toggleFavorite(burger.id)}
+                      aria-label={favorites.includes(burger.id) ? `Remove ${burger.name} from favorites` : `Add ${burger.name} to favorites`}
+                    >
+                      {favorites.includes(burger.id) ? "♥" : "♡"}
+                    </button>
+                  </div>
+                  <div className="burger-info">
+                    <div className="rating">★ <span>{burger.rating}</span> <small>• {burger.category}</small></div>
+                    <h3>{burger.name}</h3>
+                    <p>{burger.description}</p>
+                    <div className="card-bottom">
+                      <strong className="price">{money(burger.price)}</strong>
+                      <button type="button" className="add-cart" onClick={() => addToCart(burger)}>
+                        <span>+</span> ADD
+                      </button>
+                    </div>
+                  </div>
+                </article>
+              ))}
+            </div>
+          ) : (
+            <div className="no-results">
+              <span>🍔</span>
+              <h3>No burgers found</h3>
+              <p>Try another search or choose a different category.</p>
+              <button type="button" onClick={() => {
+                setSearch("");
+                setActiveCategory("All");
+                setShowFavoritesOnly(false);
+              }}>SHOW ALL BURGERS</button>
+            </div>
+          )}
+        </section>
 
-      {/* ================= CONTACT ================= */}
-      <section
-        id="contact"
-        className="bottom-section"
-      >
-        <h2>CONTACT</h2>
+        <section className="about-section" id="about">
+          <div className="about-mark">G.</div>
+          <div>
+            <span className="section-kicker">MORE THAN JUST A BURGER</span>
+            <h2>GOOD FOOD.<br /><span>GOOD MOOD.</span></h2>
+            <p>
+              At Garben Burger, we believe great moments start with great food.
+              We bring together satisfying flavors and freshly prepared
+              favorites to make every meal a little more special.
+            </p>
+            <a href="#menu" className="text-link">FIND YOUR FAVORITE <span>→</span></a>
+          </div>
+        </section>
 
-        <p>
-          Have questions? Get in touch with Garben Burger.
-        </p>
-      </section>
+        <section className="contact-section" id="contact">
+          <span className="section-kicker">READY FOR A BITE?</span>
+          <h2>YOUR NEXT FAVORITE<br /><span>IS ONE CLICK AWAY.</span></h2>
+          <a href="#menu" className="primary-button">ORDER YOUR BURGER <span>→</span></a>
+        </section>
+      </main>
 
-      {/* ================================================= */}
-      {/* CART */}
-      {/* ================================================= */}
+      <footer className="footer">
+        <a className="footer-brand" href="#home">GARBEN<span>BURGER.</span></a>
+        <p>Big flavor. Big happiness. Made fresh for you.</p>
+        <small>© {new Date().getFullYear()} Garben Burger. All rights reserved.</small>
+      </footer>
 
       {showCart && (
-        <div className="overlay">
-
-          <div className="cart-panel">
-
-            <div className="cart-header">
-
-              <h2>YOUR CART</h2>
-
-              <button
-                className="close-button"
-                onClick={() => setShowCart(false)}
-              >
-                ×
-              </button>
-
+        <div className="modal-overlay" onMouseDown={() => setShowCart(false)}>
+          <aside className="cart-drawer" role="dialog" aria-modal="true" aria-label="Shopping cart" onMouseDown={(event) => event.stopPropagation()}>
+            <div className="drawer-header">
+              <div><span className="section-kicker">GARBEN BURGER</span><h2>Your Cart <span>({totalItems})</span></h2></div>
+              <button type="button" className="close-button" onClick={() => setShowCart(false)} aria-label="Close cart">×</button>
             </div>
 
-            {/* EMPTY CART */}
             {cartItems.length === 0 ? (
-
               <div className="empty-cart">
-
-                <div className="empty-icon">
-                  🛒
-                </div>
-
-                <h3>
-                  Your cart is empty
-                </h3>
-
-                <p>
-                  Add some delicious burgers first!
-                </p>
-
-                <button
-                  className="continue-button"
-                  onClick={() => setShowCart(false)}
-                >
-                  CONTINUE SHOPPING
-                </button>
-
+                <span>🛒</span>
+                <h3>Your cart is empty</h3>
+                <p>Looks like you haven't added any burgers yet.</p>
+                <button type="button" className="primary-button" onClick={() => setShowCart(false)}>EXPLORE MENU →</button>
               </div>
-
             ) : (
-
               <>
-                {/* CART ITEMS */}
                 <div className="cart-items">
-
                   {cartItems.map((item) => (
-
-                    <div
-                      className="cart-item"
-                      key={item.id}
-                    >
-
-                      <img
-                        src={item.image}
-                        alt={item.name}
-                      />
-
+                    <div className="cart-item" key={item.id}>
+                      <img src={item.image} alt={item.name} />
                       <div className="cart-item-info">
-
-                        <h3>
-                          {item.name}
-                        </h3>
-
-                        <p>
-                          ₱{item.price.toFixed(2)}
-                        </p>
-
-                        <div className="quantity">
-
-                          <button
-                            onClick={() =>
-                              decreaseQuantity(item.id)
-                            }
-                          >
-                            −
-                          </button>
-
-                          <span>
-                            {item.quantity}
-                          </span>
-
-                          <button
-                            onClick={() =>
-                              increaseQuantity(item.id)
-                            }
-                          >
-                            +
-                          </button>
-
+                        <h3>{item.name}</h3>
+                        <p>{money(item.price)}</p>
+                        <div className="quantity-controls">
+                          <button type="button" onClick={() => decreaseQuantity(item.id)} aria-label={`Decrease ${item.name}`}>−</button>
+                          <span>{item.quantity}</span>
+                          <button type="button" onClick={() => increaseQuantity(item.id)} aria-label={`Increase ${item.name}`}>+</button>
                         </div>
-
                       </div>
-
-                      <strong>
-                        ₱
-                        {(
-                          item.price *
-                          item.quantity
-                        ).toFixed(2)}
-                      </strong>
-
+                      <div className="cart-item-end">
+                        <strong>{money(item.price * item.quantity)}</strong>
+                        <button type="button" className="remove-item" onClick={() => removeFromCart(item.id)}>Remove</button>
+                      </div>
                     </div>
-
                   ))}
-
                 </div>
-
-                {/* CART TOTAL */}
-                <div className="cart-total">
-
-                  <span>
-                    Total
-                  </span>
-
-                  <strong>
-                    ₱{totalPrice.toFixed(2)}
-                  </strong>
-
+                <div className="drawer-footer">
+                  <div className="total-row"><span>Total items</span><strong>{totalItems}</strong></div>
+                  <div className="total-row grand-total"><span>Total</span><strong>{money(totalPrice)}</strong></div>
+                  <button type="button" className="checkout-button" onClick={openCheckout}>PROCEED TO CHECKOUT →</button>
+                  <button type="button" className="continue-button" onClick={() => setShowCart(false)}>CONTINUE SHOPPING</button>
                 </div>
-
-                {/* CHECKOUT BUTTON */}
-                <button
-                  className="checkout-button"
-                  onClick={proceedToCheckout}
-                >
-                  PROCEED TO CHECKOUT
-                </button>
-
               </>
-
             )}
-
-          </div>
-
+          </aside>
         </div>
       )}
-
-      {/* ================================================= */}
-      {/* CHECKOUT */}
-      {/* ================================================= */}
 
       {showCheckout && (
-        <div className="overlay">
-
-          <div className="checkout-panel">
-
-            <div className="checkout-header">
-
-              <h2>CHECKOUT</h2>
-
-              <button
-                className="close-button"
-                onClick={() => setShowCheckout(false)}
-              >
-                ×
-              </button>
-
+        <div className="modal-overlay checkout-overlay">
+          <section className="checkout-panel" role="dialog" aria-modal="true" aria-label="Checkout">
+            <div className="drawer-header">
+              <div><span className="section-kicker">ALMOST THERE</span><h2>Checkout</h2></div>
+              <button type="button" className="close-button" onClick={() => setShowCheckout(false)} aria-label="Close checkout">×</button>
             </div>
+            <div className="checkout-layout">
+              <form className="checkout-form" onSubmit={placeOrder}>
+                <h3>Customer Information</h3>
+                <label htmlFor="customer-name">Full Name</label>
+                <input id="customer-name" type="text" name="name" placeholder="Enter your full name" value={customer.name} onChange={handleCustomerChange} required />
+                <label htmlFor="customer-contact">Contact Number</label>
+                <input id="customer-contact" type="tel" name="contact" placeholder="Enter your contact number" value={customer.contact} onChange={handleCustomerChange} required />
+                <label htmlFor="customer-address">Delivery Address</label>
+                <textarea id="customer-address" name="address" placeholder="Enter your complete delivery address" value={customer.address} onChange={handleCustomerChange} required rows="3" />
+                <label htmlFor="customer-payment">Payment Method</label>
+                <select id="customer-payment" name="payment" value={customer.payment} onChange={handleCustomerChange}>
+                  <option>Cash on Delivery</option>
+                  <option>GCash</option>
+                  <option>Credit / Debit Card</option>
+                </select>
+                <button type="submit" className="checkout-button">PLACE ORDER • {money(totalPrice)}</button>
+              </form>
 
-            {/* ORDER SUMMARY */}
-            <div className="checkout-summary">
-
-              <h3>
-                Order Summary
-              </h3>
-
-              {cartItems.map((item) => (
-
-                <div
-                  className="summary-item"
-                  key={item.id}
-                >
-
-                  <span>
-                    {item.name} × {item.quantity}
-                  </span>
-
-                  <span>
-                    ₱
-                    {(
-                      item.price *
-                      item.quantity
-                    ).toFixed(2)}
-                  </span>
-
-                </div>
-
-              ))}
-
-              <div className="summary-total">
-
-                <span>
-                  Total
-                </span>
-
-                <strong>
-                  ₱{totalPrice.toFixed(2)}
-                </strong>
-
+              <div className="order-summary">
+                <h3>Order Summary</h3>
+                {cartItems.map((item) => (
+                  <div className="summary-item" key={item.id}>
+                    <img src={item.image} alt={item.name} />
+                    <div><strong>{item.name}</strong><small>{item.quantity} × {money(item.price)}</small></div>
+                    <b>{money(item.price * item.quantity)}</b>
+                  </div>
+                ))}
+                <div className="summary-total"><span>Total ({totalItems} items)</span><strong>{money(totalPrice)}</strong></div>
               </div>
-
             </div>
-
-            {/* CUSTOMER FORM */}
-            <form
-              onSubmit={placeOrder}
-              className="checkout-form"
-            >
-
-              <h3>
-                Customer Information
-              </h3>
-
-              <label>
-                Full Name
-              </label>
-
-              <input
-                type="text"
-                placeholder="Enter your full name"
-                required
-              />
-
-              <label>
-                Address
-              </label>
-
-              <input
-                type="text"
-                placeholder="Enter your delivery address"
-                required
-              />
-
-              <label>
-                Contact Number
-              </label>
-
-              <input
-                type="tel"
-                placeholder="Enter your contact number"
-                required
-              />
-
-              <label>
-                Payment Method
-              </label>
-
-              <select required>
-
-                <option value="">
-                  Select payment method
-                </option>
-
-                <option value="cash">
-                  Cash on Delivery
-                </option>
-
-                <option value="gcash">
-                  GCash
-                </option>
-
-              </select>
-
-              <button
-                type="submit"
-                className="place-order-button"
-              >
-                PLACE ORDER
-              </button>
-
-            </form>
-
-          </div>
-
+          </section>
         </div>
       )}
 
-      {/* ================================================= */}
-      {/* ORDER SUCCESS */}
-      {/* ================================================= */}
-
-      {showSuccess && (
-        <div className="success-overlay">
-
-          <div className="success-modal">
-
-            <div className="success-icon">
-              ✓
+      {showSuccess && lastOrder && (
+        <div className="modal-overlay success-overlay">
+          <section className="success-modal" role="dialog" aria-modal="true" aria-label="Order confirmation">
+            <div className="success-icon">✓</div>
+            <span className="section-kicker">THANK YOU FOR CHOOSING US</span>
+            <h2>ORDER CONFIRMED!</h2>
+            <p>Thank you, <strong>{lastOrder.customer.name}</strong>! Your order has been placed successfully.</p>
+            <div className="success-details">
+              <div><span>Order Number</span><strong>{lastOrder.orderNumber}</strong></div>
+              <div><span>Payment Method</span><strong>{lastOrder.customer.payment}</strong></div>
+              <div><span>Delivery Address</span><strong>{lastOrder.customer.address}</strong></div>
+              <div><span>Order Total</span><strong>{money(lastOrder.total)}</strong></div>
             </div>
-
-            <h2>
-              Order Confirmed!
-            </h2>
-
-            <p>
-              Thank you for ordering from
-              <strong> Garben Burger!</strong>
-            </p>
-
-            <p className="success-small">
-              Your order has been placed successfully.
-            </p>
-
-            <button
-              className="success-button"
-              onClick={() => setShowSuccess(false)}
-            >
-              CONTINUE SHOPPING
-            </button>
-
-          </div>
-
+            <button type="button" className="checkout-button" onClick={closeSuccess}>CONTINUE SHOPPING</button>
+          </section>
         </div>
       )}
-
     </div>
   );
 }
